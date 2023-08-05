@@ -130,6 +130,7 @@ app.get(
     const user = await usersModel.findById(id);
     user.token = null;
     await user.save();
+    console.log(user);
 
     res.status(200).json({
       code: 200,
