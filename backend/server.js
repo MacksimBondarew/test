@@ -1,32 +1,72 @@
-require("colors");
-const path = require("path");
-const asyncHandler = require("express-async-handler");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const configPath = path.join(__dirname, "..", "config", ".env");
-require("dotenv").config({ path: configPath });
-const connectDb = require("../config/connectDb");
-const errorHandler = require("./middlewares/errorHandler");
-const usersModel = require("./models/usersModel");
-const authMiddleware = require("./middlewares/authMiddleware");
-const rolesModel = require("./models/rolesModel");
+require('colors');
+const { engine } = require('express-handlebars');
+const sendEmail = require('./service/sendEmail');
+const path = require('path');
+const asyncHandler = require('express-async-handler');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const configPath = path.join(__dirname, '..', 'config', '.env');
+require('dotenv').config({ path: configPath });
+const connectDb = require('../config/connectDb');
+const errorHandler = require('./middlewares/errorHandler');
+const usersModel = require('./models/usersModel');
+const authMiddleware = require('./middlewares/authMiddleware');
+const rolesModel = require('./models/rolesModel');
 
-const express = require("express");
+const express = require('express');
 
 const app = express();
+
+app.use(express.static('public'));
+
+// set tamplete engine
+app.engine('handlebars', engine());
+app.set('view engine', 'handlebars');
+app.set('views', 'backend/views');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.use("/api/v1", require("./routes/drinksRoutes"));
+app.get('/', (req, res) => {
+  res.render('home');
+});
+
+app.get('/about', (req, res) => {
+  res.render('about');
+});
+
+app.get('/contact', (req, res) => {
+  res.render('contact');
+});
+
+app.post('/sended', async (req, res) => {
+  // res.send(req.body);
+  res.render('sended', {
+    message: 'Contact form send success',
+    name: req.body.userName,
+    email: req.body.userEmail,
+  });
+
+  await sendEmail(req.body);
+});
+
+app.use('/api/v1', require('./routes/drinksRoutes'));
 
 //  Реєстрація - це збереження користувача у базі даних
 // Аутентифікація - це перевірка данних які передав користував і порівнявання з тими які які є у базі
 // Авторизація - це перевірка прав доступу
 // Розлогінення - вихід із додатку
 
+app.get('/signup', (req, res) => {
+  res.render('signup');
+});
+
+app.get('/signin', (req, res) => {
+  res.render('signin');
+});
+
 app.post(
-  "/register",
+  '/register',
   asyncHandler(async (req, res) => {
     //   отримаємо та валідуємо дані отриманні від користувача
     // шукуємо чи є користувач у базі
@@ -37,19 +77,19 @@ app.post(
 
     if (!email || !password) {
       res.status(400);
-      throw new Error("Provide all fields");
+      throw new Error('Provide all fields');
     }
 
     const condidat = await usersModel.findOne({ email });
 
     if (condidat) {
       res.status(400);
-      throw new Error("User already exist");
+      throw new Error('User already exist');
     }
 
     const hashPassword = bcrypt.hashSync(password, 5);
 
-    const roles = await rolesModel.findOne({ value: "USER" });
+    const roles = await rolesModel.findOne({ value: 'USER' });
 
     const user = await usersModel.create({
       ...req.body,
@@ -57,17 +97,19 @@ app.post(
       roles: [roles.value],
     });
 
-    res.status(201).json({
-      code: 201,
-      data: {
-        email: user.email,
-      },
-    });
+    // res.status(201).json({
+    //   code: 201,
+    //   data: {
+    //     email: user.email,
+    //   },
+    // });
+
+    res.render('register');
   })
 );
 
 app.post(
-  "/login",
+  '/login',
   asyncHandler(async (req, res) => {
     //   отримуємо та валідуємо дані отримані від користувача
     // шукаємо користувача у базі та розхешовуємо пароль
@@ -79,25 +121,25 @@ app.post(
 
     if (!email || !password) {
       res.status(400);
-      throw new Error("Provide all fields");
+      throw new Error('Provide all fields');
     }
 
     const user = await usersModel.findOne({ email });
 
     if (!user) {
       res.status(400);
-      throw new Error("invalid email or password");
+      throw new Error('invalid email or password');
     }
 
     const isValidPassword = bcrypt.compareSync(password, user.password);
 
     if (!isValidPassword) {
       res.status(400);
-      throw new Error("invalid email or password");
+      throw new Error('invalid email or password');
     }
 
     const token = generateToken({
-      friends: ["Dima", "Artem", "Vlad"],
+      friends: ['Dima', 'Artem', 'Vlad'],
       id: user._id,
       roles: user.roles,
     });
@@ -106,23 +148,25 @@ app.post(
 
     await user.save();
 
-    res.status(200).json({
-      code: 200,
-      data: {
-        email: user.email,
-        token: user.token,
-      },
-    });
+    // res.status(200).json({
+    //   code: 200,
+    //   data: {
+    //     email: user.email,
+    //     token: user.token,
+    //   },
+    // });
+
+    res.render('login');
   })
 );
 
 function generateToken(data) {
   const payload = { ...data };
-  return jwt.sign(payload, "pizza", { expiresIn: "2h" });
+  return jwt.sign(payload, 'pizza', { expiresIn: '2h' });
 }
 
 app.get(
-  "/logout",
+  '/logout',
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { id } = req.user;
@@ -136,18 +180,24 @@ app.get(
       code: 200,
       data: {
         email: user.email,
-        message: "logout success",
+        message: 'logout success',
       },
     });
   })
 );
+
+app.use('*', (req, res, next) => {
+  res.render('notfound');
+});
 
 app.use(errorHandler);
 
 connectDb();
 
 app.listen(process.env.PORT, () => {
-  console.log("Server is running on port ".green.bold.italic + process.env.PORT);
+  console.log(
+    'Server is running on port '.green.bold.italic + process.env.PORT
+  );
 });
 
 // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmllbmRzIjpbIkRpbWEiLCJBcnRlbSIsIlZsYWQiXSwiaWF0IjoxNjkxMjM3MjM4LCJleHAiOjE2OTEyNDQ0Mzh9.-KlVJIhxgnrgAXQhE96OquoKgZ--jf5vVIS61BnLQk4
