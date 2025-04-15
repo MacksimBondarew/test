@@ -13,3 +13,5 @@ function countArara(n) {
     }
     return arrayArara.join(" ");
 }
+
+console.log(countArara(4))
