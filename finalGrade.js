@@ -9,8 +9,3 @@ function finalGrade(exam, projects) {
 }
 
 console.log(finalGrade(100, 12));
-console.log(finalGrade(90, 3));
-console.log(finalGrade(55, 1));
-console.log(finalGrade(0, 11));
-console.log(finalGrade(3, 6));
-console.log(finalGrade(0, 10));
