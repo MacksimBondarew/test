@@ -8,4 +8,3 @@ function finalGrade(exam, projects) {
         : 0;
 }
 
-console.log(finalGrade(100, 12));
